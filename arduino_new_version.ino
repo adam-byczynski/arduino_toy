@@ -7,10 +7,10 @@ public:
     UltrasonicSensor(int trigger_pin, int echo_pin) {
         this->trigger_pin = trigger_pin;
         this->echo_pin = echo_pin;
-        this->readout_value = 0;
+        this->readout_value = 10000;
 
-        pinMode(trigger_pin, OUTPUT);
-        pinMode(echo_pin, INPUT);
+        pinMode(this->trigger_pin, OUTPUT);
+        pinMode(this->echo_pin, INPUT);
     }
     int trigger_pin;
     int echo_pin;
@@ -45,9 +45,9 @@ public:
     }
 
     void apply_default_state_to_pins() {
-        pinMode(PWM_pin, OUTPUT);
-        pinMode(forward_rotation_pin, OUTPUT);
-        pinMode(backward_rotation_pin, OUTPUT);
+        pinMode(this->PWM_pin, OUTPUT);
+        pinMode(this->forward_rotation_pin, OUTPUT);
+        pinMode(this->backward_rotation_pin, OUTPUT);
 
         turn_engine_off();
     }
