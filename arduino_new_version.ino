@@ -4,13 +4,13 @@ static const int SENSOR_ACTIVATION_MAX_DISTANCE {10};
 
 class UltrasonicSensor {
 public:
-    UltrasonicSensor(int trigger_pin, int echo_pin) {
-        this->trigger_pin = trigger_pin;
-        this->echo_pin = echo_pin;
-        this->readout_value = 10000;
-
-        pinMode(this->trigger_pin, OUTPUT);
-        pinMode(this->echo_pin, INPUT);
+    UltrasonicSensor(int trigger_pin, int echo_pin)
+            : trigger_pin(trigger_pin),
+              echo_pin(echo_pin),
+              readout_value(10000)
+    {
+        pinMode(trigger_pin, OUTPUT);
+        pinMode(echo_pin, INPUT);
     }
     int trigger_pin;
     int echo_pin;
@@ -26,11 +26,13 @@ public:
     int forward_motion_pin_state;
     int backward_motion_pin_state;
 
-    Engine(int PWM_pin, int forward_rotation_pin, int backward_rotation_pin) {
-        this->PWM_pin = PWM_pin;
-        this->forward_rotation_pin = forward_rotation_pin;
-        this->backward_rotation_pin = backward_rotation_pin;
-
+    Engine(int PWM_pin, int forward_rotation_pin, int backward_rotation_pin)
+            : PWM_pin(PWM_pin),
+              forward_rotation_pin(forward_rotation_pin),
+              backward_rotation_pin(backward_rotation_pin),
+              forward_motion_pin_state(LOW),
+              backward_motion_pin_state(LOW)
+    {
         apply_default_state_to_pins();
     }
 
@@ -48,8 +50,6 @@ public:
         pinMode(this->PWM_pin, OUTPUT);
         pinMode(this->forward_rotation_pin, OUTPUT);
         pinMode(this->backward_rotation_pin, OUTPUT);
-
-        turn_engine_off();
     }
 
     void set_forward_motion() {
