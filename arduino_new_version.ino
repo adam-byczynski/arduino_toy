@@ -1,20 +1,38 @@
 static const int MAX_ENGINE_VELOCITY{120};
-static const int SENSOR_ACTIVATION_MIN_DISTANCE{30};
-static const int SENSOR_ACTIVATION_MAX_DISTANCE {10};
+static const int DEFAULT_SENSOR_ACTIVATION_MIN_DISTANCE{30};
+static const int DEFAULT_SENSOR_ACTIVATION_MAX_DISTANCE {10};
 
 class UltrasonicSensor {
 public:
+
     UltrasonicSensor(int trigger_pin, int echo_pin)
             : trigger_pin(trigger_pin),
               echo_pin(echo_pin),
-              readout_value(10000)
+              readout_value(10000),
+              min_activation_distance(DEFAULT_SENSOR_ACTIVATION_MIN_DISTANCE),
+              max_activation_distance(DEFAULT_SENSOR_ACTIVATION_MAX_DISTANCE)
+    {
+        pinMode(trigger_pin, OUTPUT);
+        pinMode(echo_pin, INPUT);
+    }
+
+    UltrasonicSensor(int trigger_pin, int echo_pin, int min_activation_distance, int max_activation_distance)
+            : trigger_pin(trigger_pin),
+              echo_pin(echo_pin),
+              readout_value(10000),
+              min_activation_distance(min_activation_distance),
+              max_activation_distance(max_activation_distance)
     {
         pinMode(trigger_pin, OUTPUT);
         pinMode(echo_pin, INPUT);
     }
     int trigger_pin;
     int echo_pin;
+
     int readout_value;
+
+    int min_activation_distance;
+    int max_activation_distance;
 };
 
 class Engine {
@@ -66,10 +84,14 @@ public:
 };
 
 static const int NUMBER_OF_SENSORS {4};
-UltrasonicSensor FRONT_SENSOR(22, 23);
-UltrasonicSensor FRONT_LEFT_SENSOR(24, 25);
-UltrasonicSensor FRONT_RIGHT_SENSOR(26, 27);
-UltrasonicSensor REAR_SENSOR(28, 29);
+UltrasonicSensor FRONT_SENSOR(22,23,
+                              40,10);
+UltrasonicSensor FRONT_LEFT_SENSOR(24, 25,
+                                   40,10);
+UltrasonicSensor FRONT_RIGHT_SENSOR(26, 27,
+                                    40, 10);
+UltrasonicSensor REAR_SENSOR(28, 29,
+                             40, 10);
 UltrasonicSensor SENSORS[NUMBER_OF_SENSORS] {FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
 
 Engine ENGINE_LEFT(2, 3, 4);
@@ -97,8 +119,8 @@ void print_values() {
 }
 
 int convert_sensor_readout_to_engine_velocity(int sensor_readout){
-    int current_distance_relatively_to_max_distance = (SENSOR_ACTIVATION_MIN_DISTANCE - sensor_readout) /
-                                                      (SENSOR_ACTIVATION_MIN_DISTANCE - SENSOR_ACTIVATION_MAX_DISTANCE);
+    int current_distance_relatively_to_max_distance = (DEFAULT_SENSOR_ACTIVATION_MIN_DISTANCE - sensor_readout) /
+                                                      (DEFAULT_SENSOR_ACTIVATION_MIN_DISTANCE - DEFAULT_SENSOR_ACTIVATION_MAX_DISTANCE);
     int result_velocity = current_distance_relatively_to_max_distance * MAX_ENGINE_VELOCITY;
     return result_velocity;
 }
