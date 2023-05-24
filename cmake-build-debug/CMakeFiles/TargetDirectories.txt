@@ -1,0 +1,3 @@
+C:/Users/adam/Desktop/arduino_test/cmake-build-debug/CMakeFiles/arduino_test.dir
+C:/Users/adam/Desktop/arduino_test/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/adam/Desktop/arduino_test/cmake-build-debug/CMakeFiles/rebuild_cache.dir

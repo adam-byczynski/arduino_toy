@@ -2,6 +2,10 @@ static const int MAX_ENGINE_VELOCITY{120};
 static const int DEFAULT_SENSOR_ACTIVATION_MIN_DISTANCE{30};
 static const int DEFAULT_SENSOR_ACTIVATION_MAX_DISTANCE {10};
 
+static const int DEFAULT_UNIT_OF_TIME_LENGTH_microseconds {100};
+static const int NUMBER_OF_UNITS_OF_TIME_PER_SEC = 1000 / DEFAULT_UNIT_OF_TIME_LENGTH_microseconds;
+
+
 class UltrasonicSensor {
 public:
 
@@ -51,7 +55,9 @@ public:
               forward_motion_pin_state(LOW),
               backward_motion_pin_state(LOW)
     {
-        apply_default_state_to_pins();
+        pinMode(this->PWM_pin, OUTPUT);
+        pinMode(this->forward_rotation_pin, OUTPUT);
+        pinMode(this->backward_rotation_pin, OUTPUT);
     }
 
     void update_motion_pin_states(int forward_pin_state, int backward_pin_state, int PWM_velocity) {
@@ -62,12 +68,8 @@ public:
 
         digitalWrite(this->forward_rotation_pin, this->forward_motion_pin_state);
         digitalWrite(this->backward_rotation_pin, this->backward_motion_pin_state);
-    }
 
-    void apply_default_state_to_pins() {
-        pinMode(this->PWM_pin, OUTPUT);
-        pinMode(this->forward_rotation_pin, OUTPUT);
-        pinMode(this->backward_rotation_pin, OUTPUT);
+        delayMicroseconds(DEFAULT_UNIT_OF_TIME_LENGTH_microseconds);
     }
 
     void set_forward_motion() {
@@ -136,21 +138,21 @@ void update_sensors_readout() {
 }
 
 void update_engines_motion() {
-    //TODO logika ruchu
+
 }
 
 void calculate_resultant_velocity() {
     //TODO obliczenie predkosci wypadkowej
 }
 
-void update_position() {
+void update_vehicle_position() {
     update_sensors_readout();
     calculate_resultant_velocity();
     update_engines_motion();
 }
 
 void loop() {
-    update_position();
+    update_vehicle_position();
 }
 
 
