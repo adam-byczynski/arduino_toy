@@ -3,38 +3,49 @@ static const int ACTIVATION_MODE_FULL {2};
 static const int ACTIVATION_MODE_HALF {1};
 static const int ACTIVATION_MODE_OFF {0};
 
-static const int DEFAULT_UNIT_OF_TIME_LENGTH_microseconds {100};
+static const int DEFAULT_UNIT_OF_TIME_microseconds {100};
 
 
-class UltrasonicSensor {
+class Sensor {
 public:
     int trigger_pin;
     int echo_pin;
 
-    int readout_value;
+    int readout_distance;
     int activation_mode;
 
     int min_activation_distance;
     int max_activation_distance;
 
-    UltrasonicSensor(int trigger_pin, int echo_pin, int min_activation_distance, int max_activation_distance)
+    Sensor(int trigger_pin, int echo_pin, int min_activation_distance, int max_activation_distance)
             : trigger_pin(trigger_pin),
               echo_pin(echo_pin),
-              readout_value(100000),
+              readout_distance(100000),
               min_activation_distance(min_activation_distance),
               max_activation_distance(max_activation_distance)
     {}
 
-    void apply_default_pin_state() {
+    void initialize_default_pin_state() {
         pinMode(this->trigger_pin, OUTPUT);
         pinMode(this->echo_pin, INPUT);
     }
 
+    void measure_distance() {
+        digitalWrite(this->trigger_pin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(this->trigger_pin, LOW);
+
+        int readout = pulseIn(this->echo_pin, HIGH);
+        int distance_centimeters = readout / 58;
+        this->readout_distance = distance_centimeters;
+    }
+
     void set_activation_mode(){
-        if(this->readout_value <= this->min_activation_distance){
+        if(this->readout_distance <= this->min_activation_distance){
             this->activation_mode = ACTIVATION_MODE_FULL;
         }
-        else if(this->readout_value <= max_activation_distance && this->readout_value > this->min_activation_distance){
+        else if(this->readout_distance <= max_activation_distance &&
+                this->readout_distance > this->min_activation_distance){
             this->activation_mode = ACTIVATION_MODE_HALF;
         }
         else
@@ -57,7 +68,7 @@ public:
               backward_rotation_pin(backward_rotation_pin),
     {}
 
-    void apply_default_pin_state(){
+    void initialize_default_pin_state(){
         this->forward_motion_pin_state(LOW);
         this->backward_motion_pin_state(LOW);
         pinMode(this->PWM_pin, OUTPUT);
@@ -72,7 +83,7 @@ public:
         update_motion_pin_states(PWM_velocity, LOW, HIGH);
     }
 
-    void turn_engine_off() {
+    void turn_off() {
         update_motion_pin_states(0, LOW, LOW);
     }
 private:
@@ -89,65 +100,53 @@ private:
 };
 
 static const int NUMBER_OF_SENSORS {4};
-UltrasonicSensor FRONT_SENSOR(22,23,
-                              20, 50);
-UltrasonicSensor FRONT_LEFT_SENSOR(24, 25,
-                                   5, 5);
-UltrasonicSensor FRONT_RIGHT_SENSOR(26, 27,
-                                    5, 5);
-UltrasonicSensor REAR_SENSOR(28, 29,
-                             30, 150);
-UltrasonicSensor SENSORS[NUMBER_OF_SENSORS] {FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
+Sensor FRONT_SENSOR(22, 23,
+                    20, 50);
+Sensor FRONT_LEFT_SENSOR(24, 25,
+                         5, 5);
+Sensor FRONT_RIGHT_SENSOR(26, 27,
+                          5, 5);
+Sensor REAR_SENSOR(28, 29,
+                   30, 150);
+Sensor SENSORS[NUMBER_OF_SENSORS] {FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
 
 Engine ENGINE_LEFT(2, 3, 4);
 Engine ENGINE_RIGHT(5, 6, 7);
 
 
-int measure_sensor_distance(UltrasonicSensor sensor) {
-    digitalWrite(sensor.trigger_pin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(sensor.trigger_pin, LOW);
 
-    int readout = pulseIn(sensor.echo_pin, HIGH);
-    int distance = readout / 58;
-    return distance;
-}
 
 void print_values() {
-    for (int i = 0; i < sizeof(SENSORS) / sizeof(*SENSORS); i++) {
+    for (int i = 0; i < NUMBER_OF_SENSORS; i++) {
         Serial.print("Pin: ");
         Serial.print(i);
         Serial.print(" Distance: ");
-        Serial.print(measure_sensor_distance(SENSORS[i]));
+        Serial.print(SENSORS[i].readout_distance);
         Serial.print("\n");
     }
 }
 
-//int convert_sensor_readout_to_engine_velocity(int sensor_readout){
-//    int current_distance_relatively_to_max_distance = (DEFAULT_SENSOR_ACTIVATION_MIN_DISTANCE - sensor_readout) /
-//                                                      (DEFAULT_SENSOR_ACTIVATION_MIN_DISTANCE - DEFAULT_SENSOR_ACTIVATION_MAX_DISTANCE);
-//    int result_velocity = current_distance_relatively_to_max_distance * MAX_ENGINE_VELOCITY;
-//    return result_velocity;
-//}
-
-void apply_sensors_default_state(){
-    for(auto sensor : SENSORS){
-        sensor.apply_default_pin_state();
-    }
+int convert_sensor_readout_to_engine_velocity(Sensor sensor){
+    int commensurate_distance = (sensor.max_activation_distance - sensor.readout_distance) /
+                                (sensor.max_activation_distance - sensor.min_activation_distance);
+    int commensurate_velocity = commensurate_distance * MAX_ENGINE_VELOCITY;
+    return commensurate_velocity;
 }
 
 void setup() {
     Serial.begin(115200);
 
-    ENGINE_LEFT.apply_default_pin_state();
-    ENGINE_RIGHT.apply_default_pin_state();
-    apply_sensors_default_state();
+    ENGINE_LEFT.initialize_default_pin_state();
+    ENGINE_RIGHT.initialize_default_pin_state();
+    for(auto sensor : SENSORS){
+        sensor.initialize_default_pin_state();
+    }
 }
 
 
 void update_sensors_activation_mode() {
     for(auto sensor : SENSORS){
-        sensor.readout_value = measure_sensor_distance(sensor);
+        sensor.measure_distance();
         sensor.set_activation_mode();
     }
 }
@@ -159,12 +158,11 @@ void update_engines_motion() {
             // tutaj skręt w prawo, czyli uruchomienie lewego silnika na full a zatrzymanie prawego
             // wywalic do osobnej funkcji, jako hardcoded skret w prawo?
             ENGINE_LEFT.set_forward_motion(MAX_ENGINE_VELOCITY);
-            ENGINE_RIGHT.turn_engine_off();
+            ENGINE_RIGHT.turn_off();
             //tutaj chyba delay by było ze pojazd skręca przez jakiś czas, tak by uzyskał np kąt prosty
             delayMicroseconds(500);
         }
     }
-    // aktywacja tylnego sensora -> jazda do przodu, TODO wyjebac do osobnej funkcji
     switch(REAR_SENSOR.activation_mode){
         case ACTIVATION_MODE_FULL:
             ENGINE_LEFT.set_forward_motion(MAX_ENGINE_VELOCITY);
@@ -173,9 +171,21 @@ void update_engines_motion() {
             ENGINE_LEFT.set_forward_motion(MAX_ENGINE_VELOCITY / 2);
             ENGINE_RIGHT.set_forward_motion(MAX_ENGINE_VELOCITY / 2);
         case ACTIVATION_MODE_OFF:
-            ENGINE_LEFT.turn_engine_off();
-            ENGINE_RIGHT.turn_engine_off();
+            ENGINE_LEFT.turn_off();
+            ENGINE_RIGHT.turn_off();
     }
+
+    if(FRONT_LEFT_SENSOR.activation_mode == ACTIVATION_MODE_FULL)
+    {
+        ENGINE_LEFT.set_forward_motion(MAX_ENGINE_VELOCITY);
+        ENGINE_RIGHT.set_backward_motion(MAX_ENGINE_VELOCITY);
+    }
+    else if(FRONT_RIGHT_SENSOR.activation_mode == ACTIVATION_MODE_FULL){
+        ENGINE_LEFT.set_backward_motion(MAX_ENGINE_VELOCITY);
+        ENGINE_RIGHT.set_forward_motion(MAX_ENGINE_VELOCITY);
+    }
+
+
     /* 3 sytuacje ->
      1. lewy sensor wykrywa więc ustawia backward pin prawego silnika na HIGH co spowoduje ze prawy silnik sie zatrzyma
      i pojazd skreci w prawo
@@ -193,6 +203,6 @@ void loop() {
     update_vehicle_position();
 }
 
+// TODO lepiej obliczyć wypadkową wartość przed konwersją dystansu na prędkość, ale łatwiej najpierw zrobić konwersje
 
 //TODO dodac wskazniki zamiast kopiowania wartosci, i może inne rzeczy jak const itp
-// wyliczanie predkosci wypadkowej poza klasą i potem w klasie tylko update prędkości
