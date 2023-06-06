@@ -1,4 +1,4 @@
-C:\Users\adam\AppData\Local\JetBrains\Toolbox\apps\CLion\ch-0\231.9011.31\bin\cmake\win\x64\bin\cmake.exe -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=C:/Users/adam/AppData/Local/JetBrains/Toolbox/apps/CLion/ch-0/231.9011.31/bin/ninja/win/x64/ninja.exe -G Ninja -S C:\Users\adam\Desktop\arduino_test -B C:\Users\adam\Desktop\arduino_test\cmake-build-debug
+C:\Users\asdasd\AppData\Local\JetBrains\Toolbox\apps\CLion\ch-0\231.9011.31\bin\cmake\win\x64\bin\cmake.exe -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=C:/Users/asdasd/AppData/Local/JetBrains/Toolbox/apps/CLion/ch-0/231.9011.31/bin/ninja/win/x64/ninja.exe -G Ninja -S C:\Users\asdasd\Desktop\arduino_toy -B C:\Users\asdasd\Desktop\arduino_toy\cmake-build-debug
 -- Configuring done
 CMake Error: CMake can not determine linker language for target: arduino_test
 -- Generating done

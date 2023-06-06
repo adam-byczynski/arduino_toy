@@ -1,7 +1,3 @@
-constexpr int MAX_ENGINE_VELOCITY{120};
-constexpr int DEFAULT_UNIT_OF_TIME_microseconds{100};
-
-
 class Sensor {
 public:
     int trigger_pin;
@@ -31,16 +27,6 @@ public:
         int readout = pulseIn(echo_pin, HIGH);
         int distance_centimeters = readout / 58;
         readout_distance = distance_centimeters;
-    }
-
-    int get_converted_velocity() {
-        if (readout_distance > max_activation_distance) {
-            return 0;
-        } else {
-            int proportional_distance = (max_activation_distance - readout_distance) /
-                                        (max_activation_distance - min_activation_distance);
-            return proportional_distance * MAX_ENGINE_VELOCITY;
-        }
     }
 };
 
@@ -81,15 +67,30 @@ private:
     }
 };
 
-static const int NUMBER_OF_SENSORS{4};
 Sensor FRONT_SENSOR(22, 23, 20, 50);
 Sensor FRONT_LEFT_SENSOR(24, 25, 5, 5);
 Sensor FRONT_RIGHT_SENSOR(26, 27, 5, 5);
 Sensor REAR_SENSOR(28, 29, 30, 150);
+
+static const int NUMBER_OF_SENSORS{4};
 Sensor SENSORS[NUMBER_OF_SENSORS]{FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
+
+constexpr int MAX_ENGINE_VELOCITY{120};
 
 Engine ENGINE_LEFT(2, 3, 4);
 Engine ENGINE_RIGHT(5, 6, 7);
+
+
+
+int get_converted_velocity(Sensor& sensor) {
+    if (sensor.readout_distance > sensor.max_activation_distance) {
+        return 0;
+    } else {
+        int proportional_distance = (sensor.max_activation_distance - sensor.readout_distance) /
+                                    (sensor.max_activation_distance - sensor.min_activation_distance);
+        return proportional_distance * MAX_ENGINE_VELOCITY;
+    }
+}
 
 
 void print_values() {
@@ -116,8 +117,8 @@ void update_sensors_state() {
     }
 }
 
-int calculate_left_right_resultant_velocity() {
-    return FRONT_LEFT_SENSOR.get_converted_velocity() - FRONT_RIGHT_SENSOR.get_converted_velocity();
+int calculate_resultant_velocity_from_sensors(Sensor& sensor, Sensor& sensor2) {
+    return get_converted_velocity(sensor) - get_converted_velocity(sensor2);
 }
 
 void adjust_left_right_motion(int velocity) {
@@ -128,10 +129,6 @@ void adjust_left_right_motion(int velocity) {
         ENGINE_LEFT.set_forward_motion(velocity);
         ENGINE_RIGHT.turn_off();
     }
-}
-
-int calculate_front_back_resultant_velocity() {
-    return FRONT_SENSOR.get_converted_velocity() - REAR_SENSOR.get_converted_velocity();
 }
 
 void hardcode_right_turn_when_obstacle_in_front() {
@@ -146,12 +143,12 @@ void adjust_front_back_motion(int velocity) {
 }
 
 void update_engines_motion() {
-    int left_right_resultant_velocity = calculate_left_right_resultant_velocity();
+    int left_right_resultant_velocity = calculate_resultant_velocity_from_sensors( FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR);
     if (left_right_resultant_velocity != 0) {
         adjust_left_right_motion(left_right_resultant_velocity);
         return;
     }
-    int front_back_resultant_velocity = calculate_front_back_resultant_velocity();
+    int front_back_resultant_velocity = calculate_resultant_velocity_from_sensors(FRONT_SENSOR, REAR_SENSOR);
     if (front_back_resultant_velocity >= 0) {
         hardcode_right_turn_when_obstacle_in_front();
         return;

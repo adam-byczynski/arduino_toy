@@ -7,4 +7,4 @@ include_directories(.)
 
 add_executable(arduino_test
         arduino_new_version.ino
-        arduino_old_working.ino)
+        arduino_old_working.ino arduino_new_version.ino)
