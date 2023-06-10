@@ -70,30 +70,45 @@ private:
 };
 
 Sensor FRONT_SENSOR(22, 23, 20, 50);
-Sensor FRONT_LEFT_SENSOR(24, 25, 5, 5);
-Sensor FRONT_RIGHT_SENSOR(26, 27, 5, 5);
+Sensor FRONT_LEFT_SENSOR(24, 25, 5, 50);
+Sensor FRONT_RIGHT_SENSOR(26, 27, 5, 50);
 Sensor REAR_SENSOR(28, 29, 30, 150);
 
 constexpr int NUMBER_OF_SENSORS{4};
 Sensor SENSORS[NUMBER_OF_SENSORS]{FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
 
 constexpr int MAX_ENGINE_VELOCITY{120};
-constexpr float DESIRED_PRECISION{5.0};
+constexpr float DESIRED_PRECISION{5};
 
 Engine ENGINE_LEFT(2, 3, 4);
 Engine ENGINE_RIGHT(5, 6, 7);
 
 
+//
+//int get_converted_velocity(Sensor& sensor) {
+//    if (sensor.readout_distance > sensor.max_activation_distance) {
+//        return 0;
+//    }
+//    else {
+//        //TODO moze byc dzielenie przez 0
+//        double proportional_distance = (double)(sensor.max_activation_distance - sensor.readout_distance) /
+//                                       (double)(sensor.max_activation_distance - sensor.min_activation_distance);
+//        return (int)(proportional_distance * MAX_ENGINE_VELOCITY);
+//    }
+//}
 
 int get_converted_velocity(Sensor& sensor) {
     if (sensor.readout_distance > sensor.max_activation_distance) {
         return 0;
-    } else {
-        int proportional_distance = (sensor.max_activation_distance - sensor.readout_distance) /
-                                    (sensor.max_activation_distance - sensor.min_activation_distance);
-        return proportional_distance * MAX_ENGINE_VELOCITY;
+    }
+    else {
+        //TODO moze byc dzielenie przez 0
+        double proportional_distance = (double)(sensor.max_activation_distance - sensor.readout_distance) /
+                                       (double)(sensor.max_activation_distance - sensor.min_activation_distance);
+        return (int)(proportional_distance * MAX_ENGINE_VELOCITY);
     }
 }
+
 
 void setup() {
     Serial.begin(115200);
@@ -148,7 +163,7 @@ void update_engines_motion() {
         return;
     }
     int front_back_resultant_velocity = calculate_resultant_velocity_from_sensors(FRONT_SENSOR, REAR_SENSOR);
-    if (front_back_resultant_velocity >= 0) {
+    if (front_back_resultant_velocity > 0) {
         hardcode_right_turn_when_obstacle_in_front();
         return;
     }
