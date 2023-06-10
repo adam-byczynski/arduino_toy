@@ -113,7 +113,7 @@ void update_sensors_state() {
 
 int calculate_resultant_velocity_from_sensors(Sensor& sensor, Sensor& sensor2) {
     int resultant_velocity = get_converted_velocity(sensor) - get_converted_velocity(sensor2);
-    if (resultant_velocity < DESIRED_PRECISION) {
+    if (abs(resultant_velocity < DESIRED_PRECISION)) {
         return 0;
     } else {
         return resultant_velocity;
