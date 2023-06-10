@@ -61,6 +61,8 @@ public:
 
 private:
     void update_motion_pin_states(int PWM_velocity, int forward_pin_state, int backward_pin_state) {
+        Serial.print(PWM_velocity);
+        Serial.print("\n");
         analogWrite(PWM_pin, PWM_velocity);
         digitalWrite(forward_rotation_pin, forward_pin_state);
         digitalWrite(backward_rotation_pin, backward_pin_state);
@@ -72,10 +74,11 @@ Sensor FRONT_LEFT_SENSOR(24, 25, 5, 5);
 Sensor FRONT_RIGHT_SENSOR(26, 27, 5, 5);
 Sensor REAR_SENSOR(28, 29, 30, 150);
 
-static const int NUMBER_OF_SENSORS{4};
+constexpr int NUMBER_OF_SENSORS{4};
 Sensor SENSORS[NUMBER_OF_SENSORS]{FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
 
 constexpr int MAX_ENGINE_VELOCITY{120};
+constexpr float DESIRED_PRECISION{5.0};
 
 Engine ENGINE_LEFT(2, 3, 4);
 Engine ENGINE_RIGHT(5, 6, 7);
@@ -89,15 +92,6 @@ int get_converted_velocity(Sensor& sensor) {
         int proportional_distance = (sensor.max_activation_distance - sensor.readout_distance) /
                                     (sensor.max_activation_distance - sensor.min_activation_distance);
         return proportional_distance * MAX_ENGINE_VELOCITY;
-    }
-}
-
-
-void print_values() {
-    for (const auto &sensor: SENSORS) {
-        Serial.print(" Distance: ");
-        Serial.print(sensor.readout_distance);
-        Serial.print("\n");
     }
 }
 
@@ -118,7 +112,12 @@ void update_sensors_state() {
 }
 
 int calculate_resultant_velocity_from_sensors(Sensor& sensor, Sensor& sensor2) {
-    return get_converted_velocity(sensor) - get_converted_velocity(sensor2);
+    int resultant_velocity = get_converted_velocity(sensor) - get_converted_velocity(sensor2);
+    if (resultant_velocity < DESIRED_PRECISION) {
+        return 0;
+    } else {
+        return resultant_velocity;
+    }
 }
 
 void adjust_left_right_motion(int velocity) {
@@ -164,7 +163,3 @@ void update_vehicle_position() {
 void loop() {
     update_vehicle_position();
 }
-
-
-// odczyty boczne mają pierwszenstwo nad odczytami przod tył, wiec jesli boczne cokolwiek wykryją to najpierw następuje
-// skręt tak by odczyt boczny zniknął i wtedy jazda prosto
