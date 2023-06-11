@@ -7,10 +7,12 @@ public:
     int min_activation_distance;
     int max_activation_distance;
 
+    int relative_readout_factor;
+
     Sensor(int trigger_pin, int echo_pin, int min_activation_distance, int max_activation_distance)
             : trigger_pin(trigger_pin),
               echo_pin(echo_pin),
-              readout_distance(100000),
+              readout_distance(400),
               min_activation_distance(min_activation_distance),
               max_activation_distance(max_activation_distance) {}
 
@@ -26,7 +28,17 @@ public:
 
         int readout = pulseIn(echo_pin, HIGH);
         int distance_centimeters = readout / 58;
-        readout_distance = distance_centimeters;
+        this->readout_distance = distance_centimeters;
+    }
+
+    void relative_measure_distance() {
+        if (this->readout_distance > this->max_activation_distance) {
+            this->relative_readout_factor = 0;
+        } else {
+            double relative_factor = (double) (this->max_activation_distance - this->readout_distance) /
+                                     (double) (this->max_activation_distance - this->min_activation_distance);
+            this->relative_readout_factor = (int) relative_factor;
+        }
     }
 };
 
@@ -39,7 +51,10 @@ public:
     Engine(int PWM_pin, int forward_rotation_pin, int backward_rotation_pin)
             : PWM_pin(PWM_pin),
               forward_rotation_pin(forward_rotation_pin),
-              backward_rotation_pin(backward_rotation_pin) {}
+              backward_rotation_pin(backward_rotation_pin) {
+        digitalWrite(this->forward_rotation_pin, LOW);
+        digitalWrite(this->backward_rotation_pin, LOW);
+    }
 
     void initialize_default_pin_state() {
         pinMode(PWM_pin, OUTPUT);
@@ -47,25 +62,9 @@ public:
         pinMode(backward_rotation_pin, OUTPUT);
     }
 
-    void set_forward_motion(int PWM_velocity) {
-        update_motion_pin_states(PWM_velocity, HIGH, LOW);
-    }
-
-    void set_backward_motion(int PWM_velocity) {
-        update_motion_pin_states(PWM_velocity, LOW, HIGH);
-    }
-
-    void turn_off() {
-        update_motion_pin_states(0, LOW, LOW);
-    }
-
-private:
-    void update_motion_pin_states(int PWM_velocity, int forward_pin_state, int backward_pin_state) {
-        Serial.print(PWM_velocity);
-        Serial.print("\n");
+    void update_motion_pin_states(int PWM_velocity, int forward_pin_state) {
         analogWrite(PWM_pin, PWM_velocity);
         digitalWrite(forward_rotation_pin, forward_pin_state);
-        digitalWrite(backward_rotation_pin, backward_pin_state);
     }
 };
 
@@ -78,56 +77,24 @@ constexpr int NUMBER_OF_SENSORS{4};
 Sensor SENSORS[NUMBER_OF_SENSORS]{FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
 
 constexpr int MAX_ENGINE_VELOCITY{120};
-constexpr float DESIRED_PRECISION{5};
+constexpr int DESIRED_PRECISION{12}; //10% max velocity
 
 Engine ENGINE_LEFT(2, 3, 4);
 Engine ENGINE_RIGHT(5, 6, 7);
-
-
-//
-//int get_converted_velocity(Sensor& sensor) {
-//    if (sensor.readout_distance > sensor.max_activation_distance) {
-//        return 0;
-//    }
-//    else {
-//        //TODO moze byc dzielenie przez 0
-//        double proportional_distance = (double)(sensor.max_activation_distance - sensor.readout_distance) /
-//                                       (double)(sensor.max_activation_distance - sensor.min_activation_distance);
-//        return (int)(proportional_distance * MAX_ENGINE_VELOCITY);
-//    }
-//}
-
-int get_converted_velocity(Sensor& sensor) {
-    if (sensor.readout_distance > sensor.max_activation_distance) {
-        return 0;
-    }
-    else {
-        //TODO moze byc dzielenie przez 0
-        double proportional_distance = (double)(sensor.max_activation_distance - sensor.readout_distance) /
-                                       (double)(sensor.max_activation_distance - sensor.min_activation_distance);
-        return (int)(proportional_distance * MAX_ENGINE_VELOCITY);
-    }
-}
-
 
 void setup() {
     Serial.begin(115200);
 
     ENGINE_LEFT.initialize_default_pin_state();
     ENGINE_RIGHT.initialize_default_pin_state();
+
     for (auto &sensor: SENSORS) {
         sensor.initialize_default_pin_state();
     }
 }
 
-void update_sensors_state() {
-    for (auto &sensor: SENSORS) {
-        sensor.measure_distance();
-    }
-}
-
 int calculate_resultant_velocity_from_sensors(Sensor& sensor, Sensor& sensor2) {
-    int resultant_velocity = get_converted_velocity(sensor) - get_converted_velocity(sensor2);
+    int resultant_velocity = sensor.relative_readout_factor*MAX_ENGINE_VELOCITY - sensor2.relative_readout_factor*MAX_ENGINE_VELOCITY;
     if (abs(resultant_velocity < DESIRED_PRECISION)) {
         return 0;
     } else {
@@ -135,25 +102,25 @@ int calculate_resultant_velocity_from_sensors(Sensor& sensor, Sensor& sensor2) {
     }
 }
 
-void adjust_left_right_motion(int velocity) {
+void adjust_left_right_motion(int& velocity) {
     if (velocity < 0) {
-        ENGINE_LEFT.turn_off();
-        ENGINE_RIGHT.set_forward_motion(velocity);
+        ENGINE_LEFT.update_motion_pin_states(velocity, LOW);
+        ENGINE_RIGHT.update_motion_pin_states(velocity, HIGH);
     } else {
-        ENGINE_LEFT.set_forward_motion(velocity);
-        ENGINE_RIGHT.turn_off();
+        ENGINE_LEFT.update_motion_pin_states(velocity, HIGH);
+        ENGINE_RIGHT.update_motion_pin_states(velocity, LOW);
     }
 }
 
 void hardcode_right_turn_when_obstacle_in_front() {
     //TODO to jest do dopracowania
-    ENGINE_LEFT.set_forward_motion(MAX_ENGINE_VELOCITY);
-    ENGINE_RIGHT.turn_off();
+    ENGINE_LEFT.update_motion_pin_states(MAX_ENGINE_VELOCITY, HIGH);
+    ENGINE_RIGHT.update_motion_pin_states(MAX_ENGINE_VELOCITY, LOW);
 }
 
-void adjust_front_back_motion(int velocity) {
-    ENGINE_LEFT.set_forward_motion(velocity);
-    ENGINE_RIGHT.set_forward_motion(velocity);
+void adjust_front_back_motion(int& velocity) {
+    ENGINE_LEFT.update_motion_pin_states(velocity, HIGH);
+    ENGINE_RIGHT.update_motion_pin_states(velocity, LOW);
 }
 
 void update_engines_motion() {
@@ -170,11 +137,13 @@ void update_engines_motion() {
     adjust_front_back_motion(front_back_resultant_velocity);
 }
 
-void update_vehicle_position() {
-    update_sensors_state();
-    update_engines_motion();
-}
+// moze trzeba ustawiac stan obu silnikom naraz i na tym polega problem?
 
 void loop() {
-    update_vehicle_position();
+    for (auto &sensor: SENSORS) {
+        sensor.measure_distance();
+        Serial.print(sensor.readout_distance);
+    }
+
+    update_engines_motion();
 }
