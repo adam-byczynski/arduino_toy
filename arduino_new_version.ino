@@ -134,11 +134,15 @@ void adjust_front_back_motion(int& velocity) {
 
 void update_engines_motion() {
     int left_right_resultant_velocity = calculate_resultant_velocity_from_sensors( FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR);
+    Serial.print("left_right_resultant_velocity: ");
+    Serial.print(left_right_resultant_velocity);
     if (left_right_resultant_velocity != 0) {
         adjust_left_right_motion(left_right_resultant_velocity);
         return;
     }
     int front_back_resultant_velocity = calculate_resultant_velocity_from_sensors(FRONT_SENSOR, REAR_SENSOR);
+    Serial.print("front_back_resultant_velocity: ");
+    Serial.print(front_back_resultant_velocity);
     if (front_back_resultant_velocity > 0) {
         hardcode_right_turn_when_obstacle_in_front();
         return;
