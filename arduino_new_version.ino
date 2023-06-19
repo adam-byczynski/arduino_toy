@@ -42,29 +42,46 @@ public:
     }
 };
 
-class Engine {
+class Engines {
 public:
-    int PWM_pin;
-    int forward_rotation_pin;
-    int backward_rotation_pin;
+    int PWM_pin1;
+    int forward_rotation_pin1;
+    int backward_rotation_pin1;
 
-    Engine(int PWM_pin, int forward_rotation_pin, int backward_rotation_pin)
-            : PWM_pin(PWM_pin),
-              forward_rotation_pin(forward_rotation_pin),
-              backward_rotation_pin(backward_rotation_pin) {
-        digitalWrite(this->forward_rotation_pin, LOW);
-        digitalWrite(this->backward_rotation_pin, LOW);
-    }
+    int PWM_pin2;
+    int forward_rotation_pin2;
+    int backward_rotation_pin2;
+
+    Engines(int PWM_pin1, int forward_rotation_pin1, int backward_rotation_pin1,
+            int PWM_pin2, int forward_rotation_pin2, int backward_rotation_pin2)
+            : PWM_pin1(PWM_pin1),
+              forward_rotation_pin1(forward_rotation_pin1),
+              backward_rotation_pin1(backward_rotation_pin1),
+              PWM_pin2(PWM_pin2),
+              forward_rotation_pin2(forward_rotation_pin2),
+              backward_rotation_pin2(backward_rotation_pin2)
+            {}
 
     void initialize_default_pin_state() {
-        pinMode(PWM_pin, OUTPUT);
-        pinMode(forward_rotation_pin, OUTPUT);
-        pinMode(backward_rotation_pin, OUTPUT);
+        pinMode(PWM_pin1, OUTPUT);
+        pinMode(forward_rotation_pin1, OUTPUT);
+        pinMode(backward_rotation_pin1, OUTPUT);
+        digitalWrite(this->forward_rotation_pin1, LOW);
+        digitalWrite(this->backward_rotation_pin1, LOW);
+
+        pinMode(PWM_pin2, OUTPUT);
+        pinMode(forward_rotation_pin2, OUTPUT);
+        pinMode(backward_rotation_pin2, OUTPUT);
+        digitalWrite(this->forward_rotation_pin2, LOW);
+        digitalWrite(this->backward_rotation_pin2, LOW);
     }
 
-    void update_motion_pin_states(int PWM_velocity, int forward_pin_state) {
-        analogWrite(PWM_pin, PWM_velocity);
-        digitalWrite(forward_rotation_pin, forward_pin_state);
+    void update_motion_pin_states(int PWM_velocity, int forward_pin_state1, int forward_pin_state2) {
+        analogWrite(PWM_pin1, PWM_velocity);
+        digitalWrite(forward_rotation_pin1, forward_pin_state1);
+
+        analogWrite(PWM_pin2, PWM_velocity);
+        digitalWrite(forward_rotation_pin2, forward_pin_state2);
     }
 };
 
@@ -79,14 +96,13 @@ Sensor SENSORS[NUMBER_OF_SENSORS]{FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_S
 constexpr int MAX_ENGINE_VELOCITY{120};
 constexpr int DESIRED_PRECISION{12}; //10% max velocity
 
-Engine ENGINE_LEFT(2, 3, 4);
-Engine ENGINE_RIGHT(5, 6, 7);
+Engines ENGINES(2, 3, 4,
+                5, 6, 7);
 
 void setup() {
     Serial.begin(115200);
 
-    ENGINE_LEFT.initialize_default_pin_state();
-    ENGINE_RIGHT.initialize_default_pin_state();
+    ENGINES.initialize_default_pin_state();
 
     for (auto &sensor: SENSORS) {
         sensor.initialize_default_pin_state();
@@ -94,33 +110,26 @@ void setup() {
 }
 
 int calculate_resultant_velocity_from_sensors(Sensor& sensor, Sensor& sensor2) {
-    int resultant_velocity = sensor.relative_readout_factor*MAX_ENGINE_VELOCITY - sensor2.relative_readout_factor*MAX_ENGINE_VELOCITY;
-    if (abs(resultant_velocity < DESIRED_PRECISION)) {
-        return 0;
-    } else {
-        return resultant_velocity;
-    }
+    int resultant_velocity = MAX_ENGINE_VELOCITY * (sensor.relative_readout_factor - sensor2.relative_readout_factor);
+    abs(resultant_velocity < DESIRED_PRECISION) ? resultant_velocity = 0 : resultant_velocity;
+    return resultant_velocity;
 }
 
 void adjust_left_right_motion(int& velocity) {
     if (velocity < 0) {
-        ENGINE_LEFT.update_motion_pin_states(velocity, LOW);
-        ENGINE_RIGHT.update_motion_pin_states(velocity, HIGH);
+        ENGINES.update_motion_pin_states(velocity, LOW, HIGH);
     } else {
-        ENGINE_LEFT.update_motion_pin_states(velocity, HIGH);
-        ENGINE_RIGHT.update_motion_pin_states(velocity, LOW);
+       ENGINES.update_motion_pin_states(velocity, HIGH, LOW);
     }
 }
 
 void hardcode_right_turn_when_obstacle_in_front() {
     //TODO to jest do dopracowania
-    ENGINE_LEFT.update_motion_pin_states(MAX_ENGINE_VELOCITY, HIGH);
-    ENGINE_RIGHT.update_motion_pin_states(MAX_ENGINE_VELOCITY, LOW);
+    ENGINES.update_motion_pin_states(MAX_ENGINE_VELOCITY, HIGH, LOW);
 }
 
 void adjust_front_back_motion(int& velocity) {
-    ENGINE_LEFT.update_motion_pin_states(velocity, HIGH);
-    ENGINE_RIGHT.update_motion_pin_states(velocity, LOW);
+    ENGINES.update_motion_pin_states(velocity, HIGH, HIGH);
 }
 
 void update_engines_motion() {
@@ -147,3 +156,5 @@ void loop() {
 
     update_engines_motion();
 }
+
+//moze kod nie dziala poniewaz nie ma warunkow co ma sie stac jak wartosci beda 0?
