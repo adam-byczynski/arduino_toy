@@ -31,16 +31,21 @@ public:
         return distance_centimeters;
     }
 
-    void relative_measure_distance() {
+    double relative_measure_distance() {
         int local_readout_distance = this->measure_distance();
-        this->readout_distance = local_readout_distance;
+        double factor;
         if (local_readout_distance > this->max_activation_distance) {
-            this->relative_readout_factor = 0;
-        } else {
+            factor = 0;
+        }
+        else if (local_readout_distance <= this->min_activation_distance) {
+            factor = 1;
+        }
+        else {
             double relative_factor = (double) (this->max_activation_distance - local_readout_distance) /
                                      (double) (this->max_activation_distance - this->min_activation_distance);
-            this->relative_readout_factor = relative_factor;
+            factor = relative_factor;
         }
+        return factor;
     }
 };
 
@@ -95,8 +100,8 @@ Sensor REAR_SENSOR(28, 29, 30, 150);
 constexpr int NUMBER_OF_SENSORS{4};
 Sensor SENSORS[NUMBER_OF_SENSORS]{FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
 
-constexpr int MAX_ENGINE_VELOCITY{120};
-constexpr int DESIRED_PRECISION{6}; //5% max velocity
+constexpr int MAX_ENGINE_VELOCITY{150};
+constexpr int DESIRED_PRECISION{int(0.1 * MAX_ENGINE_VELOCITY)}; //10% of MAX_ENGINE_VELOCITY
 
 Engines ENGINES(2, 3, 4,
                 5, 6, 7);
@@ -111,9 +116,9 @@ void setup() {
     }
 }
 
-int calculate_resultant_velocity_from_sensors(Sensor& sensor, Sensor& sensor2) {
-    int resultant_velocity = MAX_ENGINE_VELOCITY * (sensor.relative_readout_factor - sensor2.relative_readout_factor);
-    abs(resultant_velocity < DESIRED_PRECISION) ? resultant_velocity = 0 : resultant_velocity;
+int calculate_resultant_velocity_from_sensors(double factor1, double factor2) {
+    int resultant_velocity = MAX_ENGINE_VELOCITY * (factor1 - factor2);
+    abs(resultant_velocity) < DESIRED_PRECISION ? resultant_velocity = 0 : resultant_velocity;
     return resultant_velocity;
 }
 
@@ -126,7 +131,6 @@ void adjust_left_right_motion(int& velocity) {
 }
 
 void hardcode_right_turn_when_obstacle_in_front() {
-    //TODO to jest do dopracowania
     ENGINES.update_motion_pin_states(MAX_ENGINE_VELOCITY, HIGH, LOW);
 }
 
@@ -134,32 +138,31 @@ void adjust_front_back_motion(int& velocity) {
     ENGINES.update_motion_pin_states(velocity, HIGH, HIGH);
 }
 
-void update_engines_motion() {
-    int left_right_resultant_velocity = calculate_resultant_velocity_from_sensors( FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR);
-    Serial.print("left_right_resultant_velocity: ");
-    Serial.print(left_right_resultant_velocity);
-    if (left_right_resultant_velocity != 0) {
-        adjust_left_right_motion(left_right_resultant_velocity);
-        return;
+void loop() {
+    double factors[4];
+    for(int index=0; index<4; index++){
+        factors[index] = SENSORS[index].relative_measure_distance();
+        Serial.print(factors[index]);
+        Serial.print("\n");
     }
-    int front_back_resultant_velocity = calculate_resultant_velocity_from_sensors(FRONT_SENSOR, REAR_SENSOR);
+
+
+    int left_right_resultant_velocity = calculate_resultant_velocity_from_sensors(factors[1], factors[2]);
+    int front_back_resultant_velocity = calculate_resultant_velocity_from_sensors(factors[0], factors[3]);
     Serial.print("front_back_resultant_velocity: ");
     Serial.print(front_back_resultant_velocity);
-    if (front_back_resultant_velocity > 0) {
+    Serial.print("\n");
+    Serial.print("left_right_resultant_velocity: ");
+    Serial.print(left_right_resultant_velocity);
+    Serial.print("\n");
+    if (left_right_resultant_velocity != 0) {
+        adjust_left_right_motion(left_right_resultant_velocity);
+    }
+    else if(front_back_resultant_velocity > 0) {
         hardcode_right_turn_when_obstacle_in_front();
-        return;
     }
-    adjust_front_back_motion(front_back_resultant_velocity);
+    else adjust_front_back_motion(front_back_resultant_velocity);
+
+    delay(5000);
 }
 
-void loop() {
-    for (auto &sensor: SENSORS) {
-        sensor.relative_measure_distance();
-        Serial.print(sensor.readout_distance);
-        Serial.print(sensor.relative_readout_factor);
-    }
-
-    update_engines_motion();
-}
-
-//moze kod nie dziala poniewaz nie ma warunkow co ma sie stac jak wartosci beda 0?
