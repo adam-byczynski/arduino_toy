@@ -35,8 +35,8 @@ public:
         int local_readout_distance = this->measure_distance();
         double factor;
         if (local_readout_distance > this->max_activation_distance) {
-            factor = 0;
-        }
+          factor = 0;
+        } 
         else if (local_readout_distance <= this->min_activation_distance) {
             factor = 1;
         }
@@ -84,24 +84,24 @@ public:
     }
 
     void update_motion_pin_states(int PWM_velocity, int forward_pin_state1, int forward_pin_state2) {
-        analogWrite(PWM_pin1, PWM_velocity);
+        analogWrite(PWM_pin1, abs(PWM_velocity));
         digitalWrite(forward_rotation_pin1, forward_pin_state1);
 
-        analogWrite(PWM_pin2, PWM_velocity);
+        analogWrite(PWM_pin2, abs(PWM_velocity));
         digitalWrite(forward_rotation_pin2, forward_pin_state2);
     }
 };
 
 Sensor FRONT_SENSOR(22, 23, 20, 50);
-Sensor FRONT_LEFT_SENSOR(24, 25, 5, 50);
-Sensor FRONT_RIGHT_SENSOR(26, 27, 5, 50);
+Sensor FRONT_LEFT_SENSOR(24, 25, 5, 15);
+Sensor FRONT_RIGHT_SENSOR(26, 27, 5, 15);
 Sensor REAR_SENSOR(28, 29, 30, 150);
 
 constexpr int NUMBER_OF_SENSORS{4};
 Sensor SENSORS[NUMBER_OF_SENSORS]{FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
 
-constexpr int MAX_ENGINE_VELOCITY{150};
-constexpr int DESIRED_PRECISION{int(0.1 * MAX_ENGINE_VELOCITY)}; //10% of MAX_ENGINE_VELOCITY
+constexpr int MAX_ENGINE_VELOCITY{100};
+constexpr int DESIRED_PRECISION{int(0.1*MAX_ENGINE_VELOCITY)}; //10% max velocity
 
 Engines ENGINES(2, 3, 4,
                 5, 6, 7);
@@ -131,6 +131,7 @@ void adjust_left_right_motion(int& velocity) {
 }
 
 void hardcode_right_turn_when_obstacle_in_front() {
+    
     ENGINES.update_motion_pin_states(MAX_ENGINE_VELOCITY, HIGH, LOW);
 }
 
@@ -141,20 +142,12 @@ void adjust_front_back_motion(int& velocity) {
 void loop() {
     double factors[4];
     for(int index=0; index<4; index++){
-        factors[index] = SENSORS[index].relative_measure_distance();
-        Serial.print(factors[index]);
-        Serial.print("\n");
-    }
-
-
+      factors[index] = SENSORS[index].relative_measure_distance();
+      }
+      
     int left_right_resultant_velocity = calculate_resultant_velocity_from_sensors(factors[1], factors[2]);
     int front_back_resultant_velocity = calculate_resultant_velocity_from_sensors(factors[0], factors[3]);
-    Serial.print("front_back_resultant_velocity: ");
-    Serial.print(front_back_resultant_velocity);
-    Serial.print("\n");
-    Serial.print("left_right_resultant_velocity: ");
-    Serial.print(left_right_resultant_velocity);
-    Serial.print("\n");
+  
     if (left_right_resultant_velocity != 0) {
         adjust_left_right_motion(left_right_resultant_velocity);
     }
@@ -162,7 +155,7 @@ void loop() {
         hardcode_right_turn_when_obstacle_in_front();
     }
     else adjust_front_back_motion(front_back_resultant_velocity);
-
-    delay(5000);
+    
+    // delay(1000);
 }
 
