@@ -7,7 +7,7 @@ public:
     int min_activation_distance;
     int max_activation_distance;
 
-    int relative_readout_factor;
+    double relative_readout_factor;
 
     Sensor(int trigger_pin, int echo_pin, int min_activation_distance, int max_activation_distance)
             : trigger_pin(trigger_pin),
@@ -21,23 +21,24 @@ public:
         pinMode(echo_pin, INPUT);
     }
 
-    void measure_distance() {
+    int measure_distance() {
         digitalWrite(trigger_pin, HIGH);
         delayMicroseconds(10);
         digitalWrite(trigger_pin, LOW);
 
         int readout = pulseIn(echo_pin, HIGH);
         int distance_centimeters = readout / 58;
-        this->readout_distance = distance_centimeters;
+        return distance_centimeters;
     }
 
     void relative_measure_distance() {
-        if (this->readout_distance > this->max_activation_distance) {
+        int readout_distance = this->measure_distance();
+        if (readout_distance > this->max_activation_distance) {
             this->relative_readout_factor = 0;
         } else {
-            double relative_factor = (double) (this->max_activation_distance - this->readout_distance) /
+            double relative_factor = (double) (this->max_activation_distance - readout_distance) /
                                      (double) (this->max_activation_distance - this->min_activation_distance);
-            this->relative_readout_factor = (int) relative_factor;
+            this->relative_readout_factor = relative_factor;
         }
     }
 };
@@ -94,7 +95,7 @@ constexpr int NUMBER_OF_SENSORS{4};
 Sensor SENSORS[NUMBER_OF_SENSORS]{FRONT_SENSOR, FRONT_LEFT_SENSOR, FRONT_RIGHT_SENSOR, REAR_SENSOR};
 
 constexpr int MAX_ENGINE_VELOCITY{120};
-constexpr int DESIRED_PRECISION{12}; //10% max velocity
+constexpr int DESIRED_PRECISION{6}; //5% max velocity
 
 Engines ENGINES(2, 3, 4,
                 5, 6, 7);
@@ -150,12 +151,11 @@ void update_engines_motion() {
     adjust_front_back_motion(front_back_resultant_velocity);
 }
 
-// moze trzeba ustawiac stan obu silnikom naraz i na tym polega problem?
-
 void loop() {
     for (auto &sensor: SENSORS) {
-        sensor.measure_distance();
+        sensor.relative_measure_distance();
         Serial.print(sensor.readout_distance);
+        Serial.print(sensor.relative_readout_factor);
     }
 
     update_engines_motion();
